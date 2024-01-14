@@ -13,6 +13,10 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  runApp(const MyApp());
+}
+
+Future<void> _onPermissionRequest() async {
   final messagingInstance = FirebaseMessaging.instance;
   messagingInstance.requestPermission();
 
@@ -20,7 +24,15 @@ void main() async {
   debugPrint('FCM TOKEN $fcmToken');
 
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  if (Platform.isAndroid) {
+  if (Platform.isIOS) {
+    await messagingInstance.requestPermission();
+    // iOSでフォアグラウンド通知を行うための設定
+    await messagingInstance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+  } else if (Platform.isAndroid) {
     final androidImplementation =
         flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -40,8 +52,6 @@ void main() async {
   // アプリ停止時に通知をタップした場合はgetInitialMessageでメッセージデータを取得できる
   final message = await FirebaseMessaging.instance.getInitialMessage();
   // 取得したmessageを利用した処理などを記載する
-
-  runApp(const MyApp());
 }
 
 Future<void> _initNotification() async {
@@ -106,54 +116,57 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const NotificationPermissionPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class NotificationPermissionPage extends StatefulWidget {
+  const NotificationPermissionPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<NotificationPermissionPage> createState() =>
+      _NotificationPermissionPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
+class _NotificationPermissionPageState
+    extends State<NotificationPermissionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: const Text('Request Notification Permission'),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+        child: FilledButton(
+          onPressed: () async {
+            await _onPermissionRequest();
+
+            if (!mounted) return;
+
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const MyHomePage(),
+              ),
+            );
+          },
+          child: const Text('Request Permission'),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class MyHomePage extends StatelessWidget {
+  const MyHomePage({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Text('Welcome to Home Page!'),
       ),
     );
   }
